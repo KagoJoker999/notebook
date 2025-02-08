@@ -9,10 +9,6 @@ const noteTemplate = document.getElementById('noteTemplate');
 
 // 常量
 const MAX_CHARS = 2000;
-const STORAGE_KEY = 'notebook_notes';
-
-// 状态管理
-let notes = loadNotes();
 
 // 字数统计
 noteInput.addEventListener('input', () => {
@@ -28,103 +24,114 @@ saveButton.addEventListener('click', () => {
         return;
     }
 
-    const note = {
-        id: Date.now(),
-        content,
-        time: new Date().toLocaleString()
-    };
-
-    notes.unshift(note);
-    saveNotes();
-    renderNotes();
+    // 创建新笔记元素
+    const noteElement = document.createElement('div');
+    noteElement.className = 'note-item';
+    
+    // 设置笔记内容
+    noteElement.innerHTML = `
+        <div class="note-content">${content}</div>
+        <div class="note-time">${new Date().toLocaleString()}</div>
+        <div class="note-actions">
+            <button class="ios-button-small edit-btn">编辑</button>
+            <button class="ios-button-small copy-btn">复制</button>
+            <button class="ios-button-small delete-btn">删除</button>
+        </div>
+    `;
+    
+    // 添加事件监听器
+    const editBtn = noteElement.querySelector('.edit-btn');
+    const copyBtn = noteElement.querySelector('.copy-btn');
+    const deleteBtn = noteElement.querySelector('.delete-btn');
+    
+    // 编辑按钮
+    editBtn.addEventListener('click', () => {
+        const contentDiv = noteElement.querySelector('.note-content');
+        const timeDiv = noteElement.querySelector('.note-time');
+        const newContent = prompt('编辑笔记', contentDiv.textContent);
+        if (newContent !== null && newContent.trim() !== '') {
+            contentDiv.textContent = newContent.trim();
+            timeDiv.textContent = new Date().toLocaleString() + ' (已编辑)';
+        }
+    });
+    
+    // 复制按钮
+    copyBtn.addEventListener('click', () => {
+        const contentDiv = noteElement.querySelector('.note-content');
+        navigator.clipboard.writeText(contentDiv.textContent).then(() => {
+            alert('已复制到剪贴板');
+        });
+    });
+    
+    // 删除按钮
+    deleteBtn.addEventListener('click', () => {
+        if (confirm('确定要删除这条笔记吗？')) {
+            noteElement.remove();
+        }
+    });
+    
+    // 将新笔记添加到列表开头
+    notesList.insertBefore(noteElement, notesList.firstChild);
+    
+    // 清空输入框
     noteInput.value = '';
     remainingChars.textContent = MAX_CHARS;
 });
 
-// 渲染笔记列表
-function renderNotes() {
-    notesList.innerHTML = '';
-    notes.forEach(note => {
-        const noteElement = noteTemplate.content.cloneNode(true);
-        const noteItem = noteElement.querySelector('.note-item');
-        
-        noteItem.querySelector('.note-content').textContent = note.content;
-        noteItem.querySelector('.note-time').textContent = note.time;
-        
-        // 编辑按钮
-        noteItem.querySelector('.edit-btn').addEventListener('click', () => {
-            const newContent = prompt('编辑笔记', note.content);
-            if (newContent !== null && newContent.trim() !== '') {
-                note.content = newContent.trim();
-                note.time = new Date().toLocaleString() + ' (已编辑)';
-                saveNotes();
-                renderNotes();
-            }
-        });
-        
-        // 复制按钮
-        noteItem.querySelector('.copy-btn').addEventListener('click', () => {
-            navigator.clipboard.writeText(note.content).then(() => {
-                alert('已复制到剪贴板');
-            });
-        });
-        
-        // 删除按钮
-        noteItem.querySelector('.delete-btn').addEventListener('click', () => {
-            if (confirm('确定要删除这条笔记吗？')) {
-                notes = notes.filter(n => n.id !== note.id);
-                saveNotes();
-                renderNotes();
-            }
-        });
-        
-        notesList.appendChild(noteItem);
-    });
-}
-
-// 保存笔记到本地存储
-function saveNotes() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-}
-
-// 从本地存储加载笔记
-function loadNotes() {
-    const savedNotes = localStorage.getItem(STORAGE_KEY);
-    return savedNotes ? JSON.parse(savedNotes) : [];
-}
-
 // AI分析功能
 analyzeButton.addEventListener('click', async () => {
+    const notes = Array.from(notesList.querySelectorAll('.note-content'))
+        .map(div => div.textContent);
+    
     if (notes.length === 0) {
         alert('没有可分析的笔记');
         return;
     }
 
     try {
-        const allContent = notes.map(note => note.content).join('\n');
+        const allContent = notes.join('\n');
+        analysisResult.textContent = '正在分析中...';
         
-        // 这里需要替换为实际的 Gemini API 调用
-        // const response = await fetch('YOUR_GEMINI_API_ENDPOINT', {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //         'Authorization': 'Bearer YOUR_API_KEY'
-        //     },
-        //     body: JSON.stringify({
-        //         text: allContent
-        //     })
-        // });
+        const API_KEY = 'AIzaSyAjki8i-hiPjKG8DD35FRUFC83IzttRmXo';
+        const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
         
-        // const result = await response.json();
-        // analysisResult.textContent = result.analysis;
+        const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: `请分析以下笔记内容，总结主要主题、关键词和情感倾向，并给出建议：\n\n${allContent}`
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 1024,
+                }
+            })
+        });
         
-        // 临时显示提示信息
-        analysisResult.textContent = '请配置 Gemini API 密钥以启用 AI 分析功能';
+        if (!response.ok) {
+            throw new Error('API请求失败');
+        }
+
+        const result = await response.json();
+        const analysis = result.candidates[0].content.parts[0].text;
+        
+        // 格式化分析结果
+        analysisResult.innerHTML = analysis
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line)
+            .map(line => `<p>${line}</p>`)
+            .join('');
+
     } catch (error) {
         console.error('分析失败:', error);
         analysisResult.textContent = '分析失败，请稍后重试';
     }
-});
-
-// 初始化
-renderNotes(); 
+}); 

@@ -21,7 +21,16 @@
         <section class="display-section">
             <h2>笔记列表</h2>
             <div id="notesList" class="notes-container">
-                <!-- 笔记将通过JavaScript动态添加 -->
+                <!-- 预设的笔记内容 -->
+                <div class="note-item">
+                    <div class="note-content">这是一个示例笔记，展示了笔记的基本格式和样式。</div>
+                    <div class="note-time">2024-01-01 12:00:00</div>
+                    <div class="note-actions">
+                        <button class="ios-button-small edit-btn">编辑</button>
+                        <button class="ios-button-small copy-btn">复制</button>
+                        <button class="ios-button-small delete-btn">删除</button>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -41,9 +50,9 @@
             <div class="note-content"></div>
             <div class="note-time"></div>
             <div class="note-actions">
-                <button class="edit-btn ios-button-small">编辑</button>
-                <button class="copy-btn ios-button-small">复制</button>
-                <button class="delete-btn ios-button-small">删除</button>
+                <button class="ios-button-small edit-btn">编辑</button>
+                <button class="ios-button-small copy-btn">复制</button>
+                <button class="ios-button-small delete-btn">删除</button>
             </div>
         </div>
     </template>
